@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"net/http"
 
-	"code.google.com/p/go.blog/content/context/userip"
 	"code.google.com/p/go.net/context"
+	"github.com/niilo/golib/context/http"
 )
 
 // Results is an ordered list of search results.
