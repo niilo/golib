@@ -6,19 +6,17 @@ import (
 	"fmt"
 	"net"
 	"net/http"
-	"strings"
 
 	"code.google.com/p/go.net/context"
 )
 
 // FromRequest extracts the user IP address from req, if present.
 func FromRequest(req *http.Request) (net.IP, error) {
-	s := strings.SplitN(req.RemoteAddr, ":", 2)
-	userIP := net.ParseIP(s[0])
-	if userIP == nil {
+	host, _, err := net.SplitHostPort(req.RemoteAddr)
+	if err != nil {
 		return nil, fmt.Errorf("userip: %q is not IP:port", req.RemoteAddr)
 	}
-	return userIP, nil
+	return net.ParseIP(host), nil
 }
 
 // The key type is unexported to prevent collisions with context keys defined in
