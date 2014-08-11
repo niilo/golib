@@ -1,6 +1,6 @@
 // Package userip provides functions for extracting a user IP address from a
 // request and associating it with a Context.
-package http
+package userip
 
 import (
 	"fmt"

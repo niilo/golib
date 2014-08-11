@@ -7,7 +7,7 @@ import (
 	"net/http"
 
 	"code.google.com/p/go.net/context"
-	"github.com/niilo/golib/context/http"
+	"github.com/niilo/golib/context/userip"
 )
 
 // Results is an ordered list of search results.
