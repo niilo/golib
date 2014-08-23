@@ -28,7 +28,9 @@ type CORSHandler struct {
 	// If AllowHeaders is nil, no headers are allowed.
 	AllowHeaders func(headers []string) bool
 
-	// ExposeHeaders is an optional list of headers that are exposed as response. By default only http://www.w3.org/TR/cors/#simple-response-header are exposed.
+	// ExposeHeaders is an optional list of headers that are returned on CORS request.
+	// By default for security reasons only Cache-Control, Content-Language, Content-Type,
+	// Expires, Last-Modified and Pragma (http://www.w3.org/TR/cors/#simple-response-header) headers are returned.
 	ExposeHeaders []string
 
 	// If SupportCredentials is true, the Access-Control-Allow-Credentials header is set to the string 'true'.
