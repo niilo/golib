@@ -60,9 +60,9 @@ func TestRollingFileWriter(t *testing.T) {
 
 func rollingFileWriterGetter(testCase *fileWriterTestCase) (io.WriteCloser, error) {
 	if testCase.rollingType == RollingTypeSize {
-		return NewRollingFileWriterSize(testCase.fileName, rollingArchiveNone, "", testCase.fileSize, testCase.maxRolls)
+		return NewRollingFileWriterSize(testCase.fileName, RollingArchiveNone, "", testCase.fileSize, testCase.maxRolls)
 	} else if testCase.rollingType == RollingTypeTime {
-		return NewRollingFileWriterTime(testCase.fileName, rollingArchiveNone, "", -1, testCase.datePattern, rollingIntervalDaily)
+		return NewRollingFileWriterTime(testCase.fileName, RollingArchiveNone, "", -1, testCase.datePattern, RollingIntervalDaily)
 	}
 
 	return nil, fmt.Errorf("incorrect rollingType")

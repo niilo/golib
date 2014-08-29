@@ -51,8 +51,8 @@ const (
 type RollingIntervalType uint8
 
 const (
-	rollingIntervalAny = iota
-	rollingIntervalDaily
+	RollingIntervalAny = iota
+	RollingIntervalDaily
 )
 
 // File and directory permitions.
@@ -62,7 +62,7 @@ const (
 )
 
 var rollingInvervalTypesStringRepresentation = map[RollingIntervalType]string{
-	rollingIntervalDaily: "daily",
+	RollingIntervalDaily: "daily",
 }
 
 func RollingIntervalTypeFromString(RollingTypeStr string) (RollingIntervalType, bool) {
@@ -94,13 +94,13 @@ func RollingTypeFromString(RollingTypeStr string) (RollingType, bool) {
 type RollingArchiveType uint8
 
 const (
-	rollingArchiveNone = iota
-	rollingArchiveZip
+	RollingArchiveNone = iota
+	RollingArchiveZip
 )
 
 var RollingArchiveTypesStringRepresentation = map[RollingArchiveType]string{
-	rollingArchiveNone: "none",
-	rollingArchiveZip:  "zip",
+	RollingArchiveNone: "none",
+	RollingArchiveZip:  "zip",
 }
 
 func RollingArchiveTypeFromString(RollingArchiveTypeStr string) (RollingArchiveType, bool) {
@@ -115,7 +115,7 @@ func RollingArchiveTypeFromString(RollingArchiveTypeStr string) (RollingArchiveT
 
 // Default names for different archivation types
 var RollingArchiveTypesDefaultNames = map[RollingArchiveType]string{
-	rollingArchiveZip: "log.zip",
+	RollingArchiveZip: "log.zip",
 }
 
 // RollerVirtual is an interface that represents all virtual funcs that are
@@ -466,7 +466,7 @@ func (rwt *RollingFileWriterTime) needsToRoll() (bool, error) {
 	if rwt.OriginalFileName+rollingLogHistoryDelimiter+time.Now().Format(rwt.TimePattern) == rwt.FileName {
 		return false, nil
 	}
-	if rwt.Interval == rollingIntervalAny {
+	if rwt.Interval == RollingIntervalAny {
 		return true, nil
 	}
 
@@ -477,7 +477,7 @@ func (rwt *RollingFileWriterTime) needsToRoll() (bool, error) {
 
 	diff := time.Now().Sub(tprev)
 	switch rwt.Interval {
-	case rollingIntervalDaily:
+	case RollingIntervalDaily:
 		return diff >= 24*time.Hour, nil
 	}
 	return false, fmt.Errorf("unknown Interval type: %d", rwt.Interval)
