@@ -22,11 +22,11 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-package seelog
+package io
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -41,27 +41,33 @@ const (
 )
 
 // Types of the rolling writer: roll by date, by time, etc.
-type rollingType uint8
+type RollingType uint8
 
 const (
-	rollingTypeSize = iota
-	rollingTypeTime
+	RollingTypeSize = iota
+	RollingTypeTime
 )
 
-type rollingIntervalType uint8
+type RollingIntervalType uint8
 
 const (
 	rollingIntervalAny = iota
 	rollingIntervalDaily
 )
 
-var rollingInvervalTypesStringRepresentation = map[rollingIntervalType]string{
+// File and directory permitions.
+const (
+	defaultFilePermissions      = 0666
+	defaultDirectoryPermissions = 0767
+)
+
+var rollingInvervalTypesStringRepresentation = map[RollingIntervalType]string{
 	rollingIntervalDaily: "daily",
 }
 
-func rollingIntervalTypeFromString(rollingTypeStr string) (rollingIntervalType, bool) {
+func RollingIntervalTypeFromString(RollingTypeStr string) (RollingIntervalType, bool) {
 	for tp, tpStr := range rollingInvervalTypesStringRepresentation {
-		if tpStr == rollingTypeStr {
+		if tpStr == RollingTypeStr {
 			return tp, true
 		}
 	}
@@ -69,14 +75,14 @@ func rollingIntervalTypeFromString(rollingTypeStr string) (rollingIntervalType, 
 	return 0, false
 }
 
-var rollingTypesStringRepresentation = map[rollingType]string{
-	rollingTypeSize: "size",
-	rollingTypeTime: "date",
+var RollingTypesStringRepresentation = map[RollingType]string{
+	RollingTypeSize: "size",
+	RollingTypeTime: "date",
 }
 
-func rollingTypeFromString(rollingTypeStr string) (rollingType, bool) {
-	for tp, tpStr := range rollingTypesStringRepresentation {
-		if tpStr == rollingTypeStr {
+func RollingTypeFromString(RollingTypeStr string) (RollingType, bool) {
+	for tp, tpStr := range RollingTypesStringRepresentation {
+		if tpStr == RollingTypeStr {
 			return tp, true
 		}
 	}
@@ -85,21 +91,21 @@ func rollingTypeFromString(rollingTypeStr string) (rollingType, bool) {
 }
 
 // Old logs archivation type.
-type rollingArchiveType uint8
+type RollingArchiveType uint8
 
 const (
 	rollingArchiveNone = iota
 	rollingArchiveZip
 )
 
-var rollingArchiveTypesStringRepresentation = map[rollingArchiveType]string{
+var RollingArchiveTypesStringRepresentation = map[RollingArchiveType]string{
 	rollingArchiveNone: "none",
 	rollingArchiveZip:  "zip",
 }
 
-func rollingArchiveTypeFromString(rollingArchiveTypeStr string) (rollingArchiveType, bool) {
-	for tp, tpStr := range rollingArchiveTypesStringRepresentation {
-		if tpStr == rollingArchiveTypeStr {
+func RollingArchiveTypeFromString(RollingArchiveTypeStr string) (RollingArchiveType, bool) {
+	for tp, tpStr := range RollingArchiveTypesStringRepresentation {
+		if tpStr == RollingArchiveTypeStr {
 			return tp, true
 		}
 	}
@@ -108,13 +114,13 @@ func rollingArchiveTypeFromString(rollingArchiveTypeStr string) (rollingArchiveT
 }
 
 // Default names for different archivation types
-var rollingArchiveTypesDefaultNames = map[rollingArchiveType]string{
+var RollingArchiveTypesDefaultNames = map[RollingArchiveType]string{
 	rollingArchiveZip: "log.zip",
 }
 
-// rollerVirtual is an interface that represents all virtual funcs that are
+// RollerVirtual is an interface that represents all virtual funcs that are
 // called in different rolling writer subtypes.
-type rollerVirtual interface {
+type RollerVirtual interface {
 	needsToRoll() (bool, error)                     // Returns true if needs to switch to another file.
 	isFileTailValid(tail string) bool               // Returns true if logger roll file tail (part after filename) is ok.
 	sortFileTailsAsc(fs []string) ([]string, error) // Sorts logger roll file tails in ascending order of their creation by logger.
@@ -122,96 +128,96 @@ type rollerVirtual interface {
 	// Creates a new froll history file using the contents of current file and filename of the latest roll.
 	// If lastRollFileTail is empty (""), then it means that there is no latest roll (current is the first one)
 	getNewHistoryFileNameTail(lastRollFileTail string) string
-	getCurrentModifiedFileName(originalFileName string) string // Returns filename modified according to specific logger rules
+	getCurrentModifiedFileName(OriginalFileName string) string // Returns filename modified according to specific logger rules
 }
 
-// rollingFileWriter writes received messages to a file, until time interval passes
+// RollingFileWriter writes received messages to a file, until time Interval passes
 // or file exceeds a specified limit. After that the current log file is renamed
 // and writer starts to log into a new file. You can set a limit for such renamed
 // files count, if you want, and then the rolling writer would delete older ones when
 // the files count exceed the specified limit.
-type rollingFileWriter struct {
-	fileName         string // current file name. May differ from original in date rolling loggers
-	originalFileName string // original one
-	currentDirPath   string
-	currentFile      *os.File
-	currentFileSize  int64
-	rollingType      rollingType // Rolling mode (Files roll by size/date/...)
-	archiveType      rollingArchiveType
-	archivePath      string
-	maxRolls         int
-	self             rollerVirtual // Used for virtual calls
+type RollingFileWriter struct {
+	FileName         string // current file name. May differ from original in date rolling loggers
+	OriginalFileName string // original one
+	CurrentDirPath   string
+	CurrentFile      *os.File
+	CurrentFileSize  int64
+	RollingType      RollingType // Rolling mode (Files roll by size/date/...)
+	ArchiveType      RollingArchiveType
+	ArchivePath      string
+	MaxRolls         int
+	Self             RollerVirtual // Used for virtual calls
 }
 
-func newRollingFileWriter(fpath string, rtype rollingType, atype rollingArchiveType, apath string, maxr int) (*rollingFileWriter, error) {
-	rw := new(rollingFileWriter)
-	rw.currentDirPath, rw.fileName = filepath.Split(fpath)
-	if len(rw.currentDirPath) == 0 {
-		rw.currentDirPath = "."
+func NewRollingFileWriter(fpath string, rtype RollingType, atype RollingArchiveType, apath string, maxr int) (*RollingFileWriter, error) {
+	rw := new(RollingFileWriter)
+	rw.CurrentDirPath, rw.FileName = filepath.Split(fpath)
+	if len(rw.CurrentDirPath) == 0 {
+		rw.CurrentDirPath = "."
 	}
-	rw.originalFileName = rw.fileName
+	rw.OriginalFileName = rw.FileName
 
-	rw.rollingType = rtype
-	rw.archiveType = atype
-	rw.archivePath = apath
-	rw.maxRolls = maxr
+	rw.RollingType = rtype
+	rw.ArchiveType = atype
+	rw.ArchivePath = apath
+	rw.MaxRolls = maxr
 	return rw, nil
 }
 
-func (rw *rollingFileWriter) getSortedLogHistory() ([]string, error) {
-	files, err := getDirFilePaths(rw.currentDirPath, nil, true)
+func (rw *RollingFileWriter) getSortedLogHistory() ([]string, error) {
+	files, err := getDirFilePaths(rw.CurrentDirPath, nil, true)
 	if err != nil {
 		return nil, err
 	}
-	pref := rw.originalFileName + rollingLogHistoryDelimiter
+	pref := rw.OriginalFileName + rollingLogHistoryDelimiter
 	var validFileTails []string
 	for _, file := range files {
-		if file != rw.fileName && strings.HasPrefix(file, pref) {
+		if file != rw.FileName && strings.HasPrefix(file, pref) {
 			tail := rw.getFileTail(file)
-			if rw.self.isFileTailValid(tail) {
+			if rw.Self.isFileTailValid(tail) {
 				validFileTails = append(validFileTails, tail)
 			}
 		}
 	}
-	sortedTails, err := rw.self.sortFileTailsAsc(validFileTails)
+	sortedTails, err := rw.Self.sortFileTailsAsc(validFileTails)
 	if err != nil {
 		return nil, err
 	}
 	validSortedFiles := make([]string, len(sortedTails))
 	for i, v := range sortedTails {
-		validSortedFiles[i] = rw.originalFileName + rollingLogHistoryDelimiter + v
+		validSortedFiles[i] = rw.OriginalFileName + rollingLogHistoryDelimiter + v
 	}
 	return validSortedFiles, nil
 }
 
-func (rw *rollingFileWriter) createFileAndFolderIfNeeded() error {
+func (rw *RollingFileWriter) createFileAndFolderIfNeeded() error {
 	var err error
 
-	if len(rw.currentDirPath) != 0 {
-		err = os.MkdirAll(rw.currentDirPath, defaultDirectoryPermissions)
+	if len(rw.CurrentDirPath) != 0 {
+		err = os.MkdirAll(rw.CurrentDirPath, defaultDirectoryPermissions)
 
 		if err != nil {
 			return err
 		}
 	}
 
-	rw.fileName = rw.self.getCurrentModifiedFileName(rw.originalFileName)
-	filePath := filepath.Join(rw.currentDirPath, rw.fileName)
+	rw.FileName = rw.Self.getCurrentModifiedFileName(rw.OriginalFileName)
+	filePath := filepath.Join(rw.CurrentDirPath, rw.FileName)
 
 	// If exists
 	stat, err := os.Lstat(filePath)
 	if err == nil {
-		rw.currentFile, err = os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, defaultFilePermissions)
+		rw.CurrentFile, err = os.OpenFile(filePath, os.O_WRONLY|os.O_APPEND, defaultFilePermissions)
 
 		stat, err = os.Lstat(filePath)
 		if err != nil {
 			return err
 		}
 
-		rw.currentFileSize = stat.Size()
+		rw.CurrentFileSize = stat.Size()
 	} else {
-		rw.currentFile, err = os.Create(filePath)
-		rw.currentFileSize = 0
+		rw.CurrentFile, err = os.Create(filePath)
+		rw.CurrentFileSize = 0
 	}
 	if err != nil {
 		return err
@@ -220,59 +226,19 @@ func (rw *rollingFileWriter) createFileAndFolderIfNeeded() error {
 	return nil
 }
 
-func (rw *rollingFileWriter) deleteOldRolls(history []string) error {
-	if rw.maxRolls <= 0 {
+func (rw *RollingFileWriter) deleteOldRolls(history []string) error {
+	if rw.MaxRolls <= 0 {
 		return nil
 	}
 
-	rollsToDelete := len(history) - rw.maxRolls
+	rollsToDelete := len(history) - rw.MaxRolls
 	if rollsToDelete <= 0 {
 		return nil
 	}
 
-	switch rw.archiveType {
-	case rollingArchiveZip:
-		var files map[string][]byte
-
-		// If archive exists
-		_, err := os.Lstat(rw.archivePath)
-		if nil == err {
-			// Extract files and content from it
-			files, err = unzip(rw.archivePath)
-			if err != nil {
-				return err
-			}
-
-			// Remove the original file
-			err = tryRemoveFile(rw.archivePath)
-			if err != nil {
-				return err
-			}
-		} else {
-			files = make(map[string][]byte)
-		}
-
-		// Add files to the existing files map, filled above
-		for i := 0; i < rollsToDelete; i++ {
-			rollPath := filepath.Join(rw.currentDirPath, history[i])
-			bts, err := ioutil.ReadFile(rollPath)
-			if err != nil {
-				return err
-			}
-
-			files[rollPath] = bts
-		}
-
-		// Put the final file set to zip file.
-		err = createZip(rw.archivePath, files)
-		if err != nil {
-			return err
-		}
-	}
-
 	// In all cases (archive files or not) the files should be deleted.
 	for i := 0; i < rollsToDelete; i++ {
-		rollPath := filepath.Join(rw.currentDirPath, history[i])
+		rollPath := filepath.Join(rw.CurrentDirPath, history[i])
 		err := tryRemoveFile(rollPath)
 		if err != nil {
 			return err
@@ -282,12 +248,23 @@ func (rw *rollingFileWriter) deleteOldRolls(history []string) error {
 	return nil
 }
 
-func (rw *rollingFileWriter) getFileTail(fileName string) string {
-	return fileName[len(rw.originalFileName+rollingLogHistoryDelimiter):]
+// tryRemoveFile gives a try removing the file
+// only ignoring an error when the file does not exist.
+func tryRemoveFile(filePath string) (err error) {
+	err = os.Remove(filePath)
+	if os.IsNotExist(err) {
+		err = nil
+		return
+	}
+	return
 }
 
-func (rw *rollingFileWriter) Write(bytes []byte) (n int, err error) {
-	if rw.currentFile == nil {
+func (rw *RollingFileWriter) getFileTail(FileName string) string {
+	return FileName[len(rw.OriginalFileName+rollingLogHistoryDelimiter):]
+}
+
+func (rw *RollingFileWriter) Write(bytes []byte) (n int, err error) {
+	if rw.CurrentFile == nil {
 		err := rw.createFileAndFolderIfNeeded()
 		if err != nil {
 			return 0, err
@@ -295,14 +272,14 @@ func (rw *rollingFileWriter) Write(bytes []byte) (n int, err error) {
 	}
 	// needs to roll if:
 	//   * file roller max file size exceeded OR
-	//   * time roller interval passed
-	nr, err := rw.self.needsToRoll()
+	//   * time roller Interval passed
+	nr, err := rw.Self.needsToRoll()
 	if err != nil {
 		return 0, err
 	}
 	if nr {
 		// First, close current file.
-		err = rw.currentFile.Close()
+		err = rw.CurrentFile.Close()
 		if err != nil {
 			return 0, err
 		}
@@ -337,20 +314,20 @@ func (rw *rollingFileWriter) Write(bytes []byte) (n int, err error) {
 		var newTail string
 		if len(history) > 0 {
 			// Create new tail name using last history file name
-			newTail = rw.self.getNewHistoryFileNameTail(rw.getFileTail(history[len(history)-1]))
+			newTail = rw.Self.getNewHistoryFileNameTail(rw.getFileTail(history[len(history)-1]))
 		} else {
 			// Create first tail name
-			newTail = rw.self.getNewHistoryFileNameTail("")
+			newTail = rw.Self.getNewHistoryFileNameTail("")
 		}
 
 		if len(newTail) != 0 {
-			newHistoryName = rw.fileName + rollingLogHistoryDelimiter + newTail
+			newHistoryName = rw.FileName + rollingLogHistoryDelimiter + newTail
 		} else {
-			newHistoryName = rw.fileName
+			newHistoryName = rw.FileName
 		}
 
-		if newHistoryName != rw.fileName {
-			err = os.Rename(filepath.Join(rw.currentDirPath, rw.fileName), filepath.Join(rw.currentDirPath, newHistoryName))
+		if newHistoryName != rw.FileName {
+			err = os.Rename(filepath.Join(rw.CurrentDirPath, rw.FileName), filepath.Join(rw.CurrentDirPath, newHistoryName))
 			if err != nil {
 				return 0, err
 			}
@@ -360,7 +337,7 @@ func (rw *rollingFileWriter) Write(bytes []byte) (n int, err error) {
 		// and, if after that the archive exceeds the allowed max limit, older rolls
 		// must the removed/archived.
 		history = append(history, newHistoryName)
-		if len(history) > rw.maxRolls {
+		if len(history) > rw.MaxRolls {
 			err = rw.deleteOldRolls(history)
 			if err != nil {
 				return 0, err
@@ -373,17 +350,17 @@ func (rw *rollingFileWriter) Write(bytes []byte) (n int, err error) {
 		}
 	}
 
-	rw.currentFileSize += int64(len(bytes))
-	return rw.currentFile.Write(bytes)
+	rw.CurrentFileSize += int64(len(bytes))
+	return rw.CurrentFile.Write(bytes)
 }
 
-func (rw *rollingFileWriter) Close() error {
-	if rw.currentFile != nil {
-		e := rw.currentFile.Close()
+func (rw *RollingFileWriter) Close() error {
+	if rw.CurrentFile != nil {
+		e := rw.CurrentFile.Close()
 		if e != nil {
 			return e
 		}
-		rw.currentFile = nil
+		rw.CurrentFile = nil
 	}
 	return nil
 }
@@ -396,27 +373,27 @@ func (rw *rollingFileWriter) Close() error {
 //      Rolling writer by SIZE
 // --------------------------------------------------
 
-// rollingFileWriterSize performs roll when file exceeds a specified limit.
-type rollingFileWriterSize struct {
-	*rollingFileWriter
-	maxFileSize int64
+// RollingFileWriterSize performs roll when file exceeds a specified limit.
+type RollingFileWriterSize struct {
+	*RollingFileWriter
+	MaxFileSize int64
 }
 
-func newRollingFileWriterSize(fpath string, atype rollingArchiveType, apath string, maxSize int64, maxRolls int) (*rollingFileWriterSize, error) {
-	rw, err := newRollingFileWriter(fpath, rollingTypeSize, atype, apath, maxRolls)
+func NewRollingFileWriterSize(fpath string, atype RollingArchiveType, apath string, maxSize int64, MaxRolls int) (*RollingFileWriterSize, error) {
+	rw, err := NewRollingFileWriter(fpath, RollingTypeSize, atype, apath, MaxRolls)
 	if err != nil {
 		return nil, err
 	}
-	rws := &rollingFileWriterSize{rw, maxSize}
-	rws.self = rws
+	rws := &RollingFileWriterSize{rw, maxSize}
+	rws.Self = rws
 	return rws, nil
 }
 
-func (rws *rollingFileWriterSize) needsToRoll() (bool, error) {
-	return rws.currentFileSize >= rws.maxFileSize, nil
+func (rws *RollingFileWriterSize) needsToRoll() (bool, error) {
+	return rws.CurrentFileSize >= rws.MaxFileSize, nil
 }
 
-func (rws *rollingFileWriterSize) isFileTailValid(tail string) bool {
+func (rws *RollingFileWriterSize) isFileTailValid(tail string) bool {
 	if len(tail) == 0 {
 		return false
 	}
@@ -434,13 +411,13 @@ func (p rollSizeFileTailsSlice) Less(i, j int) bool {
 }
 func (p rollSizeFileTailsSlice) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
 
-func (rws *rollingFileWriterSize) sortFileTailsAsc(fs []string) ([]string, error) {
+func (rws *RollingFileWriterSize) sortFileTailsAsc(fs []string) ([]string, error) {
 	ss := rollSizeFileTailsSlice(fs)
 	sort.Sort(ss)
 	return ss, nil
 }
 
-func (rws *rollingFileWriterSize) getNewHistoryFileNameTail(lastRollFileTail string) string {
+func (rws *RollingFileWriterSize) getNewHistoryFileNameTail(lastRollFileTail string) string {
 	v := 0
 	if len(lastRollFileTail) != 0 {
 		v, _ = strconv.Atoi(lastRollFileTail)
@@ -448,69 +425,69 @@ func (rws *rollingFileWriterSize) getNewHistoryFileNameTail(lastRollFileTail str
 	return fmt.Sprintf("%d", v+1)
 }
 
-func (rws *rollingFileWriterSize) getCurrentModifiedFileName(originalFileName string) string {
-	return originalFileName
+func (rws *RollingFileWriterSize) getCurrentModifiedFileName(OriginalFileName string) string {
+	return OriginalFileName
 }
 
-func (rws *rollingFileWriterSize) String() string {
-	return fmt.Sprintf("Rolling file writer (By SIZE): filename: %s, archive: %s, archivefile: %s, maxFileSize: %v, maxRolls: %v",
-		rws.fileName,
-		rollingArchiveTypesStringRepresentation[rws.archiveType],
-		rws.archivePath,
-		rws.maxFileSize,
-		rws.maxRolls)
+func (rws *RollingFileWriterSize) String() string {
+	return fmt.Sprintf("Rolling file writer (By SIZE): filename: %s, archive: %s, archivefile: %s, MaxFileSize: %v, MaxRolls: %v",
+		rws.FileName,
+		RollingArchiveTypesStringRepresentation[rws.ArchiveType],
+		rws.ArchivePath,
+		rws.MaxFileSize,
+		rws.MaxRolls)
 }
 
 // --------------------------------------------------
 //      Rolling writer by TIME
 // --------------------------------------------------
 
-// rollingFileWriterTime performs roll when a specified time interval has passed.
-type rollingFileWriterTime struct {
-	*rollingFileWriter
-	timePattern         string
-	interval            rollingIntervalType
-	currentTimeFileName string
+// RollingFileWriterTime performs roll when a specified time Interval has passed.
+type RollingFileWriterTime struct {
+	*RollingFileWriter
+	TimePattern         string
+	Interval            RollingIntervalType
+	CurrentTimeFileName string
 }
 
-func newRollingFileWriterTime(fpath string, atype rollingArchiveType, apath string, maxr int,
-	timePattern string, interval rollingIntervalType) (*rollingFileWriterTime, error) {
+func NewRollingFileWriterTime(fpath string, atype RollingArchiveType, apath string, maxr int,
+	TimePattern string, Interval RollingIntervalType) (*RollingFileWriterTime, error) {
 
-	rw, err := newRollingFileWriter(fpath, rollingTypeTime, atype, apath, maxr)
+	rw, err := NewRollingFileWriter(fpath, RollingTypeTime, atype, apath, maxr)
 	if err != nil {
 		return nil, err
 	}
-	rws := &rollingFileWriterTime{rw, timePattern, interval, ""}
-	rws.self = rws
+	rws := &RollingFileWriterTime{rw, TimePattern, Interval, ""}
+	rws.Self = rws
 	return rws, nil
 }
 
-func (rwt *rollingFileWriterTime) needsToRoll() (bool, error) {
-	if rwt.originalFileName+rollingLogHistoryDelimiter+time.Now().Format(rwt.timePattern) == rwt.fileName {
+func (rwt *RollingFileWriterTime) needsToRoll() (bool, error) {
+	if rwt.OriginalFileName+rollingLogHistoryDelimiter+time.Now().Format(rwt.TimePattern) == rwt.FileName {
 		return false, nil
 	}
-	if rwt.interval == rollingIntervalAny {
+	if rwt.Interval == rollingIntervalAny {
 		return true, nil
 	}
 
-	tprev, err := time.ParseInLocation(rwt.timePattern, rwt.getFileTail(rwt.fileName), time.Local)
+	tprev, err := time.ParseInLocation(rwt.TimePattern, rwt.getFileTail(rwt.FileName), time.Local)
 	if err != nil {
 		return false, err
 	}
 
 	diff := time.Now().Sub(tprev)
-	switch rwt.interval {
+	switch rwt.Interval {
 	case rollingIntervalDaily:
 		return diff >= 24*time.Hour, nil
 	}
-	return false, fmt.Errorf("unknown interval type: %d", rwt.interval)
+	return false, fmt.Errorf("unknown Interval type: %d", rwt.Interval)
 }
 
-func (rwt *rollingFileWriterTime) isFileTailValid(tail string) bool {
+func (rwt *RollingFileWriterTime) isFileTailValid(tail string) bool {
 	if len(tail) == 0 {
 		return false
 	}
-	_, err := time.ParseInLocation(rwt.timePattern, tail, time.Local)
+	_, err := time.ParseInLocation(rwt.TimePattern, tail, time.Local)
 	return err == nil
 }
 
@@ -527,26 +504,112 @@ func (p rollTimeFileTailsSlice) Less(i, j int) bool {
 }
 func (p rollTimeFileTailsSlice) Swap(i, j int) { p.data[i], p.data[j] = p.data[j], p.data[i] }
 
-func (rwt *rollingFileWriterTime) sortFileTailsAsc(fs []string) ([]string, error) {
-	ss := rollTimeFileTailsSlice{data: fs, pattern: rwt.timePattern}
+func (rwt *RollingFileWriterTime) sortFileTailsAsc(fs []string) ([]string, error) {
+	ss := rollTimeFileTailsSlice{data: fs, pattern: rwt.TimePattern}
 	sort.Sort(ss)
 	return ss.data, nil
 }
 
-func (rwt *rollingFileWriterTime) getNewHistoryFileNameTail(lastRollFileTail string) string {
+func (rwt *RollingFileWriterTime) getNewHistoryFileNameTail(lastRollFileTail string) string {
 	return ""
 }
 
-func (rwt *rollingFileWriterTime) getCurrentModifiedFileName(originalFileName string) string {
-	return originalFileName + rollingLogHistoryDelimiter + time.Now().Format(rwt.timePattern)
+func (rwt *RollingFileWriterTime) getCurrentModifiedFileName(OriginalFileName string) string {
+	return OriginalFileName + rollingLogHistoryDelimiter + time.Now().Format(rwt.TimePattern)
 }
 
-func (rwt *rollingFileWriterTime) String() string {
-	return fmt.Sprintf("Rolling file writer (By TIME): filename: %s, archive: %s, archivefile: %s, maxInterval: %v, pattern: %s, maxRolls: %v",
-		rwt.fileName,
-		rollingArchiveTypesStringRepresentation[rwt.archiveType],
-		rwt.archivePath,
-		rwt.interval,
-		rwt.timePattern,
-		rwt.maxRolls)
+func (rwt *RollingFileWriterTime) String() string {
+	return fmt.Sprintf("Rolling file writer (By TIME): filename: %s, archive: %s, archivefile: %s, maxInterval: %v, pattern: %s, MaxRolls: %v",
+		rwt.FileName,
+		RollingArchiveTypesStringRepresentation[rwt.ArchiveType],
+		rwt.ArchivePath,
+		rwt.Interval,
+		rwt.TimePattern,
+		rwt.MaxRolls)
+}
+
+// getDirFilePaths return full paths of the files located in the directory.
+// Remark: Ignores files for which fileFilter returns false.
+func getDirFilePaths(dirPath string, fpFilter filePathFilter, pathIsName bool) ([]string, error) {
+	dfi, err := os.Open(dirPath)
+	if err != nil {
+		return nil, newCannotOpenFileError("Cannot open directory " + dirPath)
+	}
+	defer dfi.Close()
+
+	var absDirPath string
+	if !filepath.IsAbs(dirPath) {
+		absDirPath, err = filepath.Abs(dirPath)
+		if err != nil {
+			return nil, fmt.Errorf("cannot get absolute path of directory: %s", err.Error())
+		}
+	} else {
+		absDirPath = dirPath
+	}
+
+	// TODO: check if dirPath is really directory.
+	// Size of read buffer (i.e. chunk of items read at a time).
+	rbs := 2 << 5
+	filePaths := []string{}
+
+	var fp string
+L:
+	for {
+		// Read directory entities by reasonable chuncks
+		// to prevent overflows on big number of files.
+		fis, e := dfi.Readdir(rbs)
+		switch e {
+		// It's OK.
+		case nil:
+		// Do nothing, just continue cycle.
+		case io.EOF:
+			break L
+		// Indicate that something went wrong.
+		default:
+			return nil, e
+		}
+		// THINK: Maybe, use async running.
+		for _, fi := range fis {
+			// NB: Should work on every Windows and non-Windows OS.
+			if isRegular(fi.Mode()) {
+				if pathIsName {
+					fp = fi.Name()
+				} else {
+					// Build full path of a file.
+					fp = filepath.Join(absDirPath, fi.Name())
+				}
+				// Check filter condition.
+				if fpFilter != nil && !fpFilter(fp) {
+					continue
+				}
+				filePaths = append(filePaths, fp)
+			}
+		}
+	}
+	return filePaths, nil
+}
+
+// filePathFilter is a filtering creteria function for file path.
+// Must return 'false' to set aside the given file.
+type filePathFilter func(filePath string) bool
+
+func newCannotOpenFileError(fname string) *cannotOpenFileError {
+	return &cannotOpenFileError{baseError{message: "Cannot open file: " + fname}}
+}
+
+type cannotOpenFileError struct {
+	baseError
+}
+
+// Base struct for custom errors.
+type baseError struct {
+	message string
+}
+
+func (be baseError) Error() string {
+	return be.message
+}
+
+func isRegular(m os.FileMode) bool {
+	return m&os.ModeType == 0
 }

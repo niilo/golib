@@ -22,15 +22,13 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS
 // SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-package seelog
+package io
 
 import (
 	"fmt"
 	"io"
 	"testing"
 )
-
-// fileWriterTestCase is declared in writers_filewriter_test.go
 
 func createRollingSizeFileWriterTestCase(
 	files []string,
@@ -40,7 +38,7 @@ func createRollingSizeFileWriterTestCase(
 	writeCount int,
 	resFiles []string) *fileWriterTestCase {
 
-	return &fileWriterTestCase{files, fileName, rollingTypeSize, fileSize, maxRolls, "", writeCount, resFiles}
+	return &fileWriterTestCase{files, fileName, RollingTypeSize, fileSize, maxRolls, "", writeCount, resFiles}
 }
 
 func createRollingDatefileWriterTestCase(
@@ -50,7 +48,7 @@ func createRollingDatefileWriterTestCase(
 	writeCount int,
 	resFiles []string) *fileWriterTestCase {
 
-	return &fileWriterTestCase{files, fileName, rollingTypeTime, 0, 0, datePattern, writeCount, resFiles}
+	return &fileWriterTestCase{files, fileName, RollingTypeTime, 0, 0, datePattern, writeCount, resFiles}
 }
 
 func TestRollingFileWriter(t *testing.T) {
@@ -61,10 +59,10 @@ func TestRollingFileWriter(t *testing.T) {
 //===============================================================
 
 func rollingFileWriterGetter(testCase *fileWriterTestCase) (io.WriteCloser, error) {
-	if testCase.rollingType == rollingTypeSize {
-		return newRollingFileWriterSize(testCase.fileName, rollingArchiveNone, "", testCase.fileSize, testCase.maxRolls)
-	} else if testCase.rollingType == rollingTypeTime {
-		return newRollingFileWriterTime(testCase.fileName, rollingArchiveNone, "", -1, testCase.datePattern, rollingIntervalDaily)
+	if testCase.rollingType == RollingTypeSize {
+		return NewRollingFileWriterSize(testCase.fileName, rollingArchiveNone, "", testCase.fileSize, testCase.maxRolls)
+	} else if testCase.rollingType == RollingTypeTime {
+		return NewRollingFileWriterTime(testCase.fileName, rollingArchiveNone, "", -1, testCase.datePattern, rollingIntervalDaily)
 	}
 
 	return nil, fmt.Errorf("incorrect rollingType")
