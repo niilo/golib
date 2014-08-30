@@ -35,17 +35,17 @@ import (
 
 // BufferedWriter stores data in memory and flushes it every flushPeriod or when buffer is full
 type BufferedWriter struct {
-	flushPeriod time.Duration // data flushes interval (in microseconds)
-	bufferMutex *sync.Mutex   // mutex for buffer operations syncronization
-	innerWriter io.Writer     // inner writer
-	buffer      *bufio.Writer // buffered wrapper for inner writer
-	bufferSize  int           // max size of data chunk in bytes
+	flushPeriod       time.Duration // data flushes interval (in microseconds)
+	bufferMutex       *sync.Mutex   // mutex for buffer operations syncronization
+	innerWriter       io.Writer     // inner writer
+	buffer            *bufio.Writer // buffered wrapper for inner writer
+	bufferSizeInBytes int           // max size of data chunk in bytes
 }
 
 // NewBufferedWriter creates a new buffered writer struct.
-// bufferSize -- size of memory buffer in bytes
+// bufferSizeInBytes -- size of memory buffer in bytes
 // flushPeriod -- period in which data flushes from memory buffer in milliseconds. 0 - turn off this functionality
-func NewBufferedWriter(innerWriter io.Writer, bufferSize int, flushPeriod time.Duration) (*BufferedWriter, error) {
+func NewBufferedWriter(innerWriter io.Writer, bufferSizeInBytes int, flushPeriod time.Duration) (*BufferedWriter, error) {
 
 	if innerWriter == nil {
 		return nil, errors.New("argument is nil: innerWriter")
@@ -54,11 +54,11 @@ func NewBufferedWriter(innerWriter io.Writer, bufferSize int, flushPeriod time.D
 		return nil, fmt.Errorf("flushPeriod can not be less than 0. Got: %d", flushPeriod)
 	}
 
-	if bufferSize <= 0 {
-		return nil, fmt.Errorf("bufferSize can not be less or equal to 0. Got: %d", bufferSize)
+	if bufferSizeInBytes <= 0 {
+		return nil, fmt.Errorf("bufferSizeInBytes can not be less or equal to 0. Got: %d", bufferSizeInBytes)
 	}
 
-	buffer := bufio.NewWriterSize(innerWriter, bufferSize)
+	buffer := bufio.NewWriterSize(innerWriter, bufferSizeInBytes)
 
 	/*if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func NewBufferedWriter(innerWriter io.Writer, bufferSize int, flushPeriod time.D
 
 	newWriter.innerWriter = innerWriter
 	newWriter.buffer = buffer
-	newWriter.bufferSize = bufferSize
+	newWriter.bufferSizeInBytes = bufferSizeInBytes
 	newWriter.flushPeriod = flushPeriod * 1e6
 	newWriter.bufferMutex = new(sync.Mutex)
 
@@ -99,7 +99,7 @@ func (bufWriter *BufferedWriter) Write(bytes []byte) (n int, err error) {
 
 	bytesLen := len(bytes)
 
-	if bytesLen > bufWriter.bufferSize {
+	if bytesLen > bufWriter.bufferSizeInBytes {
 		return bufWriter.writeBigChunk(bytes)
 	}
 
@@ -157,5 +157,5 @@ func (bufWriter *BufferedWriter) flushPeriodically() {
 }
 
 func (bufWriter *BufferedWriter) String() string {
-	return fmt.Sprintf("BufferedWriter size: %d, flushPeriod: %d", bufWriter.bufferSize, bufWriter.flushPeriod)
+	return fmt.Sprintf("BufferedWriter size: %d, flushPeriod: %d", bufWriter.bufferSizeInBytes, bufWriter.flushPeriod)
 }
