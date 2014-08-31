@@ -53,7 +53,7 @@ func createRollingDatefileWriterTestCase(
 
 func TestRollingFileWriter(t *testing.T) {
 	t.Logf("Starting rolling file writer tests")
-	newFileWriterTester(rollingfileWriterTests, rollingFileWriterGetter, t).test()
+	NewFileWriterTester(rollingfileWriterTests, rollingFileWriterGetter, t).test()
 }
 
 //===============================================================
