@@ -41,15 +41,15 @@ func runLongTest(t *testing.T, image string) {
 		t.Skip("skipping in short mode")
 	}
 	if !haveDocker() {
-		t.Skip("skipping test; 'docker' command not found")
+		t.Error("'docker' command not found")
 	}
 	if ok, err := haveImage(image); !ok || err != nil {
 		if err != nil {
-			t.Skipf("Error running docker to check for %s: %v", image, err)
+			t.Errorf("Error running docker to check for %s: %v", image, err)
 		}
 		log.Printf("Pulling docker image %s ...", image)
 		if err := Pull(image); err != nil {
-			t.Skipf("Error pulling %s: %v", image, err)
+			t.Errorf("Error pulling %s: %v", image, err)
 		}
 	}
 }
@@ -177,13 +177,13 @@ func setupContainer(t *testing.T, image string, port int, timeout time.Duration,
 	ip, err = c.lookup(port, timeout)
 	if err != nil {
 		c.KillRemove(t)
-		t.Skipf("Skipping test for container %v: %v", c, err)
+		t.Errorf("Container %v setup failed: %v", c, err)
 	}
 	return
 }
 
 const (
-	mongoImage       = "robinvdvleuten/mongo"
+	mongoImage       = "dockerfile/mongodb"
 	mysqlImage       = "orchardup/mysql"
 	MySQLUsername    = "root"
 	MySQLPassword    = "root"
@@ -198,7 +198,7 @@ const (
 // Currently using https://index.docker.io/u/robinvdvleuten/mongo/
 func SetupMongoContainer(t *testing.T) (c ContainerID, ip string) {
 	return setupContainer(t, mongoImage, 27017, 10*time.Second, func() (string, error) {
-		return run("-d", mongoImage, "--nojournal")
+		return run("-d", "-p", "27017:27017", "--name", "dockertestmongodb", mongoImage)
 	})
 }
 
