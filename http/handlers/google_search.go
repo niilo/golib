@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"time"
 
-	"code.google.com/p/go.net/context"
 	"github.com/niilo/golib/context/google"
 	"github.com/niilo/golib/context/userip"
+	"golang.org/x/net/context"
 )
 
 // handleSearch handles URLs like /search?q=golang&timeout=1s by forwarding the
