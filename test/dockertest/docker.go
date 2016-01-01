@@ -183,7 +183,7 @@ func setupContainer(t *testing.T, image string, port int, timeout time.Duration,
 }
 
 const (
-	mongoImage       = "dockerfile/mongodb"
+	mongoImage       = "library/mongo"
 	mysqlImage       = "orchardup/mysql"
 	MySQLUsername    = "root"
 	MySQLPassword    = "root"
