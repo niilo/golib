@@ -195,7 +195,7 @@ const (
 // SetupMongoContainer sets up a real MongoDB instance for testing purposes,
 // using a Docker container. It returns the container ID and its IP address,
 // or makes the test fail on error.
-// Currently using https://index.docker.io/u/robinvdvleuten/mongo/
+// Currently using https://hub.docker.com/_/mongo/
 func SetupMongoContainer(t *testing.T) (c ContainerID, ip string) {
 	return setupContainer(t, mongoImage, 27017, 10*time.Second, func() (string, error) {
 		return run("-d", "-p", "27017:27017", "--name", "dockertestmongodb", mongoImage)
@@ -205,7 +205,7 @@ func SetupMongoContainer(t *testing.T) (c ContainerID, ip string) {
 // SetupMySQLContainer sets up a real MySQL instance for testing purposes,
 // using a Docker container. It returns the container ID and its IP address,
 // or makes the test fail on error.
-// Currently using https://index.docker.io/u/orchardup/mysql/
+// Currently using https://hub.docker.com/_/mysql/
 func SetupMySQLContainer(t *testing.T, dbname string) (c ContainerID, ip string) {
 	return setupContainer(t, mysqlImage, 3306, 10*time.Second, func() (string, error) {
 		return run("-d", "-e", "MYSQL_ROOT_PASSWORD="+MySQLPassword, "-e", "MYSQL_DATABASE="+dbname, mysqlImage)
@@ -215,7 +215,7 @@ func SetupMySQLContainer(t *testing.T, dbname string) (c ContainerID, ip string)
 // SetupPostgreSQLContainer sets up a real PostgreSQL instance for testing purposes,
 // using a Docker container. It returns the container ID and its IP address,
 // or makes the test fail on error.
-// Currently using https://index.docker.io/u/nornagon/postgres
+// Currently using https://hub.docker.com/_/postgres/
 func SetupPostgreSQLContainer(t *testing.T, dbname string) (c ContainerID, ip string) {
 	c, ip = setupContainer(t, postgresImage, 5432, 15*time.Second, func() (string, error) {
 		return run("-d", postgresImage)
