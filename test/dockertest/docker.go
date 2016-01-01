@@ -184,10 +184,10 @@ func setupContainer(t *testing.T, image string, port int, timeout time.Duration,
 
 const (
 	mongoImage       = "library/mongo"
-	mysqlImage       = "orchardup/mysql"
+	mysqlImage       = "library/mysql"
 	MySQLUsername    = "root"
 	MySQLPassword    = "root"
-	postgresImage    = "nornagon/postgres"
+	postgresImage    = "library/postgres"
 	PostgresUsername = "docker" // set up by the dockerfile of postgresImage
 	PostgresPassword = "docker" // set up by the dockerfile of postgresImage
 )
